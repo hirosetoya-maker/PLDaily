@@ -2,7 +2,7 @@ import { sql } from "@/lib/db"
 import { getLatestBalance } from "@/lib/queries/balance"
 import { sumIncome } from "@/lib/queries/income"
 import { sumExpenses } from "@/lib/queries/expenses"
-import { addDays } from "@/lib/utils"
+import { addDays, toJSTDateString } from "@/lib/utils"
 import type { CashFlowPoint } from "@/types"
 
 export async function calculateCashFlow(
@@ -15,7 +15,7 @@ export async function calculateCashFlow(
   const baseDate = latestBalance.recordedAt
   const baseAmount = latestBalance.amount
   const today = new Date()
-  const todayStr = today.toISOString().split("T")[0]
+  const todayStr = toJSTDateString(today)
 
   // Confirmed income and expenses since last balance update
   const confirmedIncome = await sumIncome(userId, { after: baseDate, before: todayStr })
@@ -24,7 +24,7 @@ export async function calculateCashFlow(
 
   // Future scheduled items (income + fixed + variable)
   const endDate = addDays(today, daysAhead)
-  const endDateStr = endDate.toISOString().split("T")[0]
+  const endDateStr = toJSTDateString(endDate)
 
   const futureIncome = await sql`
     SELECT date::text, SUM(amount)::bigint as total

@@ -5,7 +5,7 @@ import dynamic from "next/dynamic"
 import { BalanceCard } from "@/components/dashboard/balance-card"
 import { MonthlySummary } from "@/components/dashboard/monthly-summary"
 import { EmptyState } from "@/components/ui/empty-state"
-import { formatDateShort } from "@/lib/utils"
+import { formatDateShort, toJSTDateString } from "@/lib/utils"
 import type { BalanceLog, Expense, CashFlowPoint } from "@/types"
 import Link from "next/link"
 
@@ -16,11 +16,9 @@ const CashFlowChart = dynamic(
 
 function getMonthRange() {
   const now = new Date()
-  const from = new Date(now.getFullYear(), now.getMonth(), 1)
-  const to = new Date(now.getFullYear(), now.getMonth() + 1, 0)
   return {
-    from: from.toISOString().split("T")[0],
-    to: to.toISOString().split("T")[0],
+    from: toJSTDateString(new Date(now.getFullYear(), now.getMonth(), 1)),
+    to: toJSTDateString(new Date(now.getFullYear(), now.getMonth() + 1, 0)),
   }
 }
 

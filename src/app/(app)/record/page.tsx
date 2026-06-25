@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from "react"
 import { AddTransactionSheet } from "@/components/record/add-transaction-sheet"
 import { EmptyState } from "@/components/ui/empty-state"
-import { formatDateShort } from "@/lib/utils"
+import { formatDateShort, toJSTDateString } from "@/lib/utils"
 import { INCOME_TYPE_LABELS } from "@/types"
 import type { Expense, Income } from "@/types"
 
@@ -14,8 +14,8 @@ function getRange(period: Period) {
   const now = new Date()
   const year = period === "current" ? now.getFullYear() : now.getMonth() === 0 ? now.getFullYear() - 1 : now.getFullYear()
   const month = period === "current" ? now.getMonth() : (now.getMonth() + 11) % 12
-  const from = new Date(year, month, 1).toISOString().split("T")[0]
-  const to = new Date(year, month + 1, 0).toISOString().split("T")[0]
+  const from = toJSTDateString(new Date(year, month, 1))
+  const to = toJSTDateString(new Date(year, month + 1, 0))
   return { from, to }
 }
 

@@ -3,12 +3,11 @@
 import { useEffect, useState, useCallback } from "react"
 import type { MonthlyFixed, VariableExpense, FixedExpense } from "@/types"
 import { EmptyState } from "@/components/ui/empty-state"
-import { formatDateShort } from "@/lib/utils"
+import { formatDateShort, toJSTDateString } from "@/lib/utils"
 
 function getMonthDate(offset = 0): string {
   const now = new Date()
-  const d = new Date(now.getFullYear(), now.getMonth() + offset, 1)
-  return d.toISOString().split("T")[0]
+  return toJSTDateString(new Date(now.getFullYear(), now.getMonth() + offset, 1))
 }
 
 function monthLabel(monthStr: string): string {
@@ -221,7 +220,7 @@ function AddFixedSheet({ month, onClose, onSaved }: { month: string; onClose: ()
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40" onClick={onClose}>
+    <div className="fixed inset-0 bottom-16 z-50 flex items-end justify-center bg-black/40" onClick={onClose}>
       <div
         className="w-full max-w-lg bg-[var(--surface)] rounded-t-3xl p-6 space-y-4"
         onClick={(e) => e.stopPropagation()}
@@ -302,7 +301,7 @@ function AddVariableSheet({ month, onClose, onSaved }: { month: string; onClose:
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40" onClick={onClose}>
+    <div className="fixed inset-0 bottom-16 z-50 flex items-end justify-center bg-black/40" onClick={onClose}>
       <div
         className="w-full max-w-lg bg-[var(--surface)] rounded-t-3xl p-6 space-y-4"
         onClick={(e) => e.stopPropagation()}
