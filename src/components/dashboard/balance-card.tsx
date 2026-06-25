@@ -63,7 +63,7 @@ export function BalanceCard({ balance, onUpdated }: BalanceCardProps) {
       </div>
 
       {showModal && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 px-0">
+        <div className="fixed inset-0 bottom-16 z-50 flex items-end justify-center bg-black/40 px-0">
           <div className="w-full max-w-lg bg-[var(--surface)] rounded-t-3xl p-6 space-y-4">
             <div className="w-12 h-1 bg-[var(--border)] rounded-full mx-auto" />
             <h2 className="text-base font-semibold text-center">手持ち残高を更新</h2>

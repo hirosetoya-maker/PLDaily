@@ -124,7 +124,7 @@ export function AddTransactionSheet({
   })()
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40" onClick={onClose}>
+    <div className="fixed inset-0 bottom-16 z-50 flex items-end justify-center bg-black/40" onClick={onClose}>
       <div
         className="w-full max-w-lg bg-[var(--surface)] rounded-t-3xl overflow-y-auto"
         style={{ maxHeight: "85dvh" }}
