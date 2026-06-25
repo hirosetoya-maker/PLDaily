@@ -18,7 +18,7 @@ export async function getExpenses(
   return rows.map((r) => ({
     id: r.id as string,
     userId: r.user_id as string,
-    amount: r.amount as number,
+    amount: Number(r.amount),
     categoryId: r.category_id as string | null,
     date: r.date as string,
     memo: r.memo as string | null,
@@ -38,7 +38,7 @@ export async function getExpenseById(id: string): Promise<Expense | null> {
   return {
     id: r.id as string,
     userId: r.user_id as string,
-    amount: r.amount as number,
+    amount: Number(r.amount),
     categoryId: r.category_id as string | null,
     date: r.date as string,
     memo: r.memo as string | null,

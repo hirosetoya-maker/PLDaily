@@ -14,7 +14,7 @@ export async function getLatestBalance(userId: string): Promise<BalanceLog | nul
   return {
     id: r.id as string,
     userId: r.user_id as string,
-    amount: r.amount as number,
+    amount: Number(r.amount),
     note: r.note as string | null,
     recordedAt: r.recorded_at as string,
   }

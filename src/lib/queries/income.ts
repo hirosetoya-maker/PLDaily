@@ -16,7 +16,7 @@ export async function getIncome(
   return rows.map((r) => ({
     id: r.id as string,
     userId: r.user_id as string,
-    amount: r.amount as number,
+    amount: Number(r.amount),
     type: r.type as Income["type"],
     date: r.date as string,
     memo: r.memo as string | null,
@@ -34,7 +34,7 @@ export async function getIncomeById(id: string): Promise<Income | null> {
   return {
     id: r.id as string,
     userId: r.user_id as string,
-    amount: r.amount as number,
+    amount: Number(r.amount),
     type: r.type as Income["type"],
     date: r.date as string,
     memo: r.memo as string | null,
