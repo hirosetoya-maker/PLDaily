@@ -89,7 +89,7 @@ export async function calculateCashFlow(
 
   for (let i = 1; i <= daysAhead; i++) {
     const d = addDays(today, i)
-    const dateStr = d.toISOString().split("T")[0]
+    const dateStr = toJSTDateString(d)
     const delta = deltaMap.get(dateStr) ?? 0
     runningBalance += delta
     points.push({ date: dateStr, balance: runningBalance, isProjected: true })
