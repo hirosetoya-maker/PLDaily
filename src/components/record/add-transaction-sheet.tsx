@@ -31,7 +31,12 @@ export function AddTransactionSheet({
   const [amount, setAmount] = useState("")
   const [categoryId, setCategoryId] = useState<string | null>(null)
   const [incomeType, setIncomeType] = useState<Income["type"]>("salary")
-  const [date, setDate] = useState(new Date().toISOString().split("T")[0])
+  const [date, setDate] = useState(() => {
+    const now = new Date()
+    return now.toLocaleDateString("ja-JP", {
+      year: "numeric", month: "2-digit", day: "2-digit", timeZone: "Asia/Tokyo"
+    }).replace(/\//g, "-")
+  })
   const [memo, setMemo] = useState("")
   const [categories, setCategories] = useState<Category[]>([])
   const [loading, setLoading] = useState(false)
