@@ -6,7 +6,7 @@ import { BalanceCard } from "@/components/dashboard/balance-card"
 import { MonthlySummary } from "@/components/dashboard/monthly-summary"
 import { EmptyState } from "@/components/ui/empty-state"
 import { formatDateShort, toJSTDateString } from "@/lib/utils"
-import type { BalanceLog, Expense, CashFlowPoint } from "@/types"
+import type { BalanceLog, Expense, MonthlyCashFlow } from "@/types"
 import Link from "next/link"
 
 const CashFlowChart = dynamic(
@@ -26,7 +26,7 @@ export default function DashboardPage() {
   const [balance, setBalance] = useState<BalanceLog | null>(null)
   const [expenses, setExpenses] = useState<Expense[]>([])
   const [monthlyIncome, setMonthlyIncome] = useState(0)
-  const [cashflow, setCashflow] = useState<CashFlowPoint[]>([])
+  const [cashflow, setCashflow] = useState<MonthlyCashFlow[]>([])
   const [loading, setLoading] = useState(true)
 
   const fetchAll = useCallback(async () => {

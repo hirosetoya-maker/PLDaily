@@ -50,6 +50,16 @@ export default function FixedPage() {
     fetchData()
   }
 
+  async function seedPresets() {
+    if (!confirm("よく使う固定費（家賃・サブスク等）をまとめて登録しますか？\n登録後に個別に編集・削除できます。")) return
+    await fetch("/api/fixed-expenses", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "seed_defaults", month }),
+    })
+    fetchData()
+  }
+
   async function deleteVariable(id: string) {
     if (!confirm("削除しますか？")) return
     await fetch(`/api/variable-expenses/${id}`, { method: "DELETE" })
@@ -85,12 +95,20 @@ export default function FixedPage() {
             <p className="text-xs text-[var(--muted-foreground)]">固定費</p>
             <p className="font-mono text-lg font-bold">¥{fixedTotal.toLocaleString("ja-JP")}</p>
           </div>
-          <button
-            onClick={() => { setEditFixedMaster(null); setShowAddFixed(true) }}
-            className="text-xs text-[var(--primary)] font-medium px-3 py-1.5 rounded-lg border border-[var(--primary)]/30 hover:bg-[var(--primary)]/5"
-          >
-            ＋ 追加
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={seedPresets}
+              className="text-xs text-[var(--muted-foreground)] font-medium px-3 py-1.5 rounded-lg border border-[var(--border)] hover:bg-[var(--muted)]"
+            >
+              プリセット読込
+            </button>
+            <button
+              onClick={() => { setEditFixedMaster(null); setShowAddFixed(true) }}
+              className="text-xs text-[var(--primary)] font-medium px-3 py-1.5 rounded-lg border border-[var(--primary)]/30 hover:bg-[var(--primary)]/5"
+            >
+              ＋ 追加
+            </button>
+          </div>
         </div>
 
         {monthlyFixed.length === 0 ? (
@@ -222,7 +240,8 @@ function AddFixedSheet({ month, onClose, onSaved }: { month: string; onClose: ()
   return (
     <div className="fixed inset-0 bottom-16 z-50 flex items-end justify-center bg-black/40" onClick={onClose}>
       <div
-        className="w-full max-w-lg bg-[var(--surface)] rounded-t-3xl p-6 space-y-4"
+        className="w-full max-w-lg bg-[var(--surface)] rounded-t-3xl p-6 space-y-4 overflow-y-auto"
+        style={{ maxHeight: "85dvh" }}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="w-12 h-1 bg-[var(--border)] rounded-full mx-auto" />
@@ -280,6 +299,23 @@ function AddFixedSheet({ month, onClose, onSaved }: { month: string; onClose: ()
   )
 }
 
+// カード請求など、毎月あるが金額が変わる支払いのテンプレート（day = 引き落とし日）
+const VARIABLE_PRESETS = [
+  { name: "JCBW", day: 10 },
+  { name: "リクルート", day: 10 },
+  { name: "PayPay", day: 27 },
+  { name: "Olive", day: 27 },
+  { name: "三井住友NL", day: 27 },
+  { name: "楽天カード", day: 27 },
+]
+
+function presetDateFor(month: string, day: number): string {
+  const [y, m] = month.split("-").map((v) => parseInt(v, 10))
+  const daysInMonth = new Date(y, m, 0).getDate()
+  const d = Math.min(day, daysInMonth)
+  return `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`
+}
+
 function AddVariableSheet({ month, onClose, onSaved }: { month: string; onClose: () => void; onSaved: () => void }) {
   const [name, setName] = useState("")
   const [amount, setAmount] = useState("")
@@ -303,11 +339,34 @@ function AddVariableSheet({ month, onClose, onSaved }: { month: string; onClose:
   return (
     <div className="fixed inset-0 bottom-16 z-50 flex items-end justify-center bg-black/40" onClick={onClose}>
       <div
-        className="w-full max-w-lg bg-[var(--surface)] rounded-t-3xl p-6 space-y-4"
+        className="w-full max-w-lg bg-[var(--surface)] rounded-t-3xl p-6 space-y-4 overflow-y-auto"
+        style={{ maxHeight: "85dvh" }}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="w-12 h-1 bg-[var(--border)] rounded-full mx-auto" />
         <h2 className="text-base font-semibold text-center">変動費を追加</h2>
+
+        <div>
+          <label className="text-xs text-[var(--muted-foreground)] mb-2 block">よく使う請求（タップで入力）</label>
+          <div className="flex flex-wrap gap-2">
+            {VARIABLE_PRESETS.map((p) => (
+              <button
+                key={p.name}
+                onClick={() => {
+                  setName(p.name)
+                  setPaymentDate(presetDateFor(month, p.day))
+                }}
+                className={`px-3 py-2 rounded-full border text-xs transition-colors ${
+                  name === p.name
+                    ? "border-[var(--primary)] bg-[var(--primary)]/10 text-[var(--primary)]"
+                    : "border-[var(--border)] bg-[var(--muted)]"
+                }`}
+              >
+                {p.name}（{p.day}日）
+              </button>
+            ))}
+          </div>
+        </div>
 
         <div>
           <label className="text-xs text-[var(--muted-foreground)] mb-1 block">名前</label>

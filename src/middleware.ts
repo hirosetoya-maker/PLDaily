@@ -8,6 +8,10 @@ export default auth((req) => {
 
   if (isApiAuth) return NextResponse.next()
   if (!isLoggedIn && !isLoginPage) {
+    // API routes get a JSON 401 instead of an HTML redirect (fetch callers parse JSON)
+    if (req.nextUrl.pathname.startsWith("/api")) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
     return NextResponse.redirect(new URL("/login", req.url))
   }
   if (isLoggedIn && isLoginPage) {

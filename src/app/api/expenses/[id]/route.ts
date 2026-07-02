@@ -18,6 +18,12 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 })
 
   const { amount, categoryId, date, memo } = parsed.data
+  if (categoryId) {
+    const cat = await sql`
+      SELECT 1 FROM categories WHERE id = ${categoryId} AND (user_id IS NULL OR user_id = ${session.user.id})
+    `
+    if (!cat[0]) return NextResponse.json({ error: "Invalid category" }, { status: 400 })
+  }
   await sql`
     UPDATE expenses SET
       amount = ${amount},

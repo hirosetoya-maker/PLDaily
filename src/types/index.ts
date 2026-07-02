@@ -66,10 +66,12 @@ export type BalanceLog = {
   recordedAt: string
 }
 
-export type CashFlowPoint = {
-  date: string
-  balance: number
-  isProjected: boolean
+export type MonthlyCashFlow = {
+  month: string // "2026-07"
+  income: number
+  expense: number
+  net: number
+  isCurrent: boolean
 }
 
 export const INCOME_TYPE_LABELS: Record<Income["type"], string> = {

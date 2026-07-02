@@ -25,6 +25,12 @@ export async function POST(req: NextRequest) {
   if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 })
 
   const { amount, categoryId, date, memo } = parsed.data
+  if (categoryId) {
+    const cat = await sql`
+      SELECT 1 FROM categories WHERE id = ${categoryId} AND (user_id IS NULL OR user_id = ${session.user.id})
+    `
+    if (!cat[0]) return NextResponse.json({ error: "Invalid category" }, { status: 400 })
+  }
   const rows = await sql`
     INSERT INTO expenses (user_id, amount, category_id, date, memo)
     VALUES (${session.user.id}, ${amount}, ${categoryId ?? null}, ${date}::date, ${memo ?? null})

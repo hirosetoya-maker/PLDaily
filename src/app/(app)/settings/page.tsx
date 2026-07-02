@@ -20,9 +20,6 @@ export default function SettingsPage() {
     fetchCategories()
   }, [fetchCategories])
 
-  const defaultCats = categories.filter((c) => c.isDefault)
-  const customCats = categories.filter((c) => !c.isDefault)
-
   async function handleDeleteCategory(id: string) {
     if (!confirm("削除しますか？")) return
     await fetch(`/api/categories/${id}`, { method: "DELETE" })
@@ -67,53 +64,34 @@ export default function SettingsPage() {
           </button>
         </div>
 
-        {defaultCats.length > 0 && (
-          <div>
-            <p className="px-5 pt-3 pb-1 text-xs text-[var(--muted-foreground)]">デフォルト</p>
-            <div className="grid grid-cols-4 gap-3 px-5 pb-4">
-              {defaultCats.map((c) => (
-                <div key={c.id} className="flex flex-col items-center gap-1">
-                  <span className="text-2xl">{c.icon}</span>
-                  <span className="text-[10px] text-[var(--muted-foreground)] text-center">{c.name}</span>
+        {categories.length > 0 ? (
+          <ul className="divide-y divide-[var(--border)]">
+            {categories.map((c) => (
+              <li key={c.id} className="flex items-center justify-between px-5 py-3">
+                <div className="flex items-center gap-2">
+                  <span className="text-xl">{c.icon}</span>
+                  <span className="text-sm">{c.name}</span>
                 </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {customCats.length > 0 && (
-          <div className="border-t border-[var(--border)]">
-            <p className="px-5 pt-3 pb-1 text-xs text-[var(--muted-foreground)]">カスタム</p>
-            <ul className="divide-y divide-[var(--border)]">
-              {customCats.map((c) => (
-                <li key={c.id} className="flex items-center justify-between px-5 py-3">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xl">{c.icon}</span>
-                    <span className="text-sm">{c.name}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => { setEditCategory(c); setShowAddCategory(true) }}
-                      className="text-xs text-[var(--primary)] px-2 py-1 rounded"
-                    >
-                      編集
-                    </button>
-                    <button
-                      onClick={() => handleDeleteCategory(c.id)}
-                      className="text-xs text-[var(--expense)] px-2 py-1 rounded"
-                    >
-                      削除
-                    </button>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
-
-        {customCats.length === 0 && (
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => { setEditCategory(c); setShowAddCategory(true) }}
+                    className="text-xs text-[var(--primary)] px-3 py-2 rounded"
+                  >
+                    編集
+                  </button>
+                  <button
+                    onClick={() => handleDeleteCategory(c.id)}
+                    className="text-xs text-[var(--expense)] px-3 py-2 rounded"
+                  >
+                    削除
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        ) : (
           <EmptyState
-            title="カスタムカテゴリはありません"
+            title="カテゴリがありません"
             description="＋追加ボタンから作成できます"
             className="py-6"
           />
@@ -175,9 +153,10 @@ function CategorySheet({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40" onClick={onClose}>
+    <div className="fixed inset-0 bottom-16 z-50 flex items-end justify-center bg-black/40" onClick={onClose}>
       <div
-        className="w-full max-w-lg bg-[var(--surface)] rounded-t-3xl p-6 space-y-4"
+        className="w-full max-w-lg bg-[var(--surface)] rounded-t-3xl p-6 space-y-4 overflow-y-auto"
+        style={{ maxHeight: "85dvh" }}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="w-12 h-1 bg-[var(--border)] rounded-full mx-auto" />
@@ -199,9 +178,21 @@ function CategorySheet({
         </div>
 
         <div>
-          <label className="text-xs text-[var(--muted-foreground)] mb-2 block">
-            アイコン（選択中: {icon}）
+          <label className="text-xs text-[var(--muted-foreground)] mb-1 block">
+            アイコン（絵文字キーボードから自由に入力できます）
           </label>
+          <input
+            type="text"
+            value={icon}
+            onChange={(e) => {
+              // 絵文字1文字分だけ保持（合字・肌色バリエーションも1文字として扱う）
+              const chars = [...new Intl.Segmenter().segment(e.target.value)]
+              setIcon(chars.length > 0 ? chars[chars.length - 1].segment : "")
+            }}
+            placeholder="絵文字を入力"
+            className="w-full px-4 py-3 bg-[var(--muted)] rounded-xl text-2xl text-center outline-none focus:ring-2 focus:ring-[var(--primary)]"
+          />
+          <p className="text-xs text-[var(--muted-foreground)] mt-2 mb-1">よく使う絵文字</p>
           <div className="grid grid-cols-5 gap-2">
             {EMOJI_OPTIONS.map((e) => (
               <button

@@ -49,3 +49,8 @@ body {
   font-family: var(--font-sans), system-ui, -apple-system, sans-serif;
   -webkit-font-smoothing: antialiased;
 }
+
+/* iOS safe area (home indicator) support */
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom);
+}

@@ -1,28 +1,41 @@
 "use client"
 
 import {
-  LineChart,
-  Line,
+  BarChart,
+  Bar,
   XAxis,
   YAxis,
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  ReferenceLine,
 } from "recharts"
-import { formatCurrency, formatDateShort } from "@/lib/utils"
-import type { CashFlowPoint } from "@/types"
+import { formatCurrency } from "@/lib/utils"
+import type { MonthlyCashFlow } from "@/types"
 
 interface CashFlowChartProps {
-  data: CashFlowPoint[]
+  data: MonthlyCashFlow[]
 }
 
-function CustomTooltip({ active, payload, label }: { active?: boolean; payload?: { value: number }[]; label?: string }) {
+function monthLabel(month: string): string {
+  const [, m] = month.split("-")
+  return `${parseInt(m)}月`
+}
+
+function CustomTooltip({ active, payload, label }: {
+  active?: boolean
+  payload?: { payload: MonthlyCashFlow }[]
+  label?: string
+}) {
   if (!active || !payload?.length) return null
+  const d = payload[0].payload
   return (
-    <div className="bg-[var(--surface)] border border-[var(--border)] rounded-xl p-3 shadow-lg text-xs">
-      <p className="text-[var(--muted-foreground)] mb-1">{label}</p>
-      <p className="font-mono font-bold">{formatCurrency(payload[0].value)}</p>
+    <div className="bg-[var(--surface)] border border-[var(--border)] rounded-xl p-3 shadow-lg text-xs space-y-1">
+      <p className="text-[var(--muted-foreground)]">{label}</p>
+      <p className="font-mono">▲収入 {formatCurrency(d.income)}</p>
+      <p className="font-mono">▼支出 {formatCurrency(d.expense)}</p>
+      <p className={`font-mono font-bold ${d.net >= 0 ? "text-[var(--income)]" : "text-[var(--expense)]"}`}>
+        差引 {d.net >= 0 ? "+" : "−"}{formatCurrency(Math.abs(d.net))}
+      </p>
     </div>
   )
 }
@@ -31,59 +44,41 @@ export function CashFlowChart({ data }: CashFlowChartProps) {
   if (!data.length) {
     return (
       <div className="bg-[var(--surface)] rounded-2xl p-5 border border-[var(--border)]">
-        <span className="text-xs text-[var(--muted-foreground)]">キャッシュフロー予測</span>
+        <span className="text-xs text-[var(--muted-foreground)]">月次収支</span>
         <div className="h-32 flex items-center justify-center text-[var(--muted-foreground)] text-sm mt-4">
-          残高を設定するとグラフが表示されます
+          収支を記録するとグラフが表示されます
         </div>
       </div>
     )
   }
 
-  const todayStr = new Date().toISOString().split("T")[0]
-  const hasNegative = data.some((d) => d.balance < 0)
-
-  const actualData = data.filter((d) => !d.isProjected)
-  const projectedData = data.filter((d) => d.isProjected)
-
-  // Weekly ticks
-  const ticks = data
-    .filter((_, i) => i % 7 === 0)
-    .map((d) => d.date)
-
-  const minBalance = Math.min(...data.map((d) => d.balance))
-  const maxBalance = Math.max(...data.map((d) => d.balance))
-
-  const scheduledCount = data.filter((d) => d.isProjected && d.balance !== data[0]?.balance).length
+  const chartData = data.map((d) => ({ ...d, label: monthLabel(d.month) }))
+  const hasDeficit = data.some((d) => d.net < 0)
 
   return (
     <div className="bg-[var(--surface)] rounded-2xl p-5 border border-[var(--border)]">
       <div className="flex items-center justify-between mb-1">
-        <span className="text-xs text-[var(--muted-foreground)]">キャッシュフロー予測</span>
-        {hasNegative && (
-          <span className="text-xs text-[var(--expense)] font-medium">⚠ 残高不足の予測あり</span>
+        <span className="text-xs text-[var(--muted-foreground)]">月次収支（固定費・変動費含む）</span>
+        {hasDeficit && (
+          <span className="text-xs text-[var(--expense)] font-medium">⚠ 赤字の月あり</span>
         )}
       </div>
-      <div className="flex items-center gap-4 mb-4 mt-1">
+      <div className="flex items-center gap-4 mb-3 mt-1">
         <div className="flex items-center gap-1.5">
-          <div className="w-5 h-0.5 bg-[var(--primary)]" />
-          <span className="text-[10px] text-[var(--muted-foreground)]">実績</span>
+          <div className="w-2.5 h-2.5 rounded-sm bg-[var(--income)]" />
+          <span className="text-[10px] text-[var(--muted-foreground)]">▲収入</span>
         </div>
         <div className="flex items-center gap-1.5">
-          <div className="w-5 h-0.5 border-t-2 border-dashed border-[var(--primary)] opacity-60" />
-          <span className="text-[10px] text-[var(--muted-foreground)]">予測</span>
+          <div className="w-2.5 h-2.5 rounded-sm bg-[var(--expense)]" />
+          <span className="text-[10px] text-[var(--muted-foreground)]">▼支出</span>
         </div>
       </div>
 
       <ResponsiveContainer width="100%" height={160}>
-        <LineChart data={data} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
+        <BarChart data={chartData} margin={{ top: 4, right: 8, left: 0, bottom: 0 }} barGap={2}>
           <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
           <XAxis
-            dataKey="date"
-            ticks={ticks}
-            tickFormatter={(v) => {
-              const [, m, d] = v.split("-")
-              return `${parseInt(m)}/${parseInt(d)}`
-            }}
+            dataKey="label"
             tick={{ fontSize: 10, fill: "var(--muted-foreground)" }}
             axisLine={false}
             tickLine={false}
@@ -94,35 +89,31 @@ export function CashFlowChart({ data }: CashFlowChartProps) {
             axisLine={false}
             tickLine={false}
             width={50}
-            domain={[Math.min(0, minBalance - 10000), maxBalance + 10000]}
           />
-          <Tooltip content={<CustomTooltip />} />
-          {hasNegative && (
-            <ReferenceLine y={0} stroke="var(--expense)" strokeDasharray="4 4" strokeWidth={1} />
-          )}
-          <ReferenceLine x={todayStr} stroke="var(--muted-foreground)" strokeDasharray="4 4" strokeWidth={1} />
-          <Line
-            type="monotone"
-            dataKey="balance"
-            stroke="var(--primary)"
-            strokeWidth={2}
-            dot={false}
-            activeDot={{ r: 4, fill: "var(--primary)" }}
-            data={actualData.length > 0 ? [...actualData, { ...projectedData[0], balance: actualData[actualData.length - 1]?.balance }] : data}
-          />
-          <Line
-            type="monotone"
-            dataKey="balance"
-            stroke="var(--primary)"
-            strokeWidth={2}
-            strokeDasharray="5 5"
-            strokeOpacity={0.6}
-            dot={false}
-            activeDot={{ r: 4, fill: "var(--primary)" }}
-            data={projectedData}
-          />
-        </LineChart>
+          <Tooltip content={<CustomTooltip />} cursor={{ fill: "var(--muted)", opacity: 0.4 }} />
+          <Bar dataKey="income" fill="var(--income)" radius={[4, 4, 0, 0]} maxBarSize={20} />
+          <Bar dataKey="expense" fill="var(--expense)" radius={[4, 4, 0, 0]} maxBarSize={20} />
+        </BarChart>
       </ResponsiveContainer>
+
+      {/* 月ごとの差引（黒字/赤字） */}
+      <div className="flex mt-2">
+        {chartData.map((d) => (
+          <div key={d.month} className="flex-1 text-center">
+            <p
+              className={`font-mono text-[10px] font-medium ${
+                d.net >= 0 ? "text-[var(--income)]" : "text-[var(--expense)]"
+              }`}
+            >
+              {d.net >= 0 ? "+" : "−"}
+              {Math.abs(d.net) >= 10000
+                ? `${(Math.abs(d.net) / 10000).toFixed(1)}万`
+                : Math.abs(d.net).toLocaleString("ja-JP")}
+            </p>
+            {d.isCurrent && <p className="text-[9px] text-[var(--muted-foreground)]">今月</p>}
+          </div>
+        ))}
+      </div>
     </div>
   )
 }
