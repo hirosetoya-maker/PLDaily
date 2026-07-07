@@ -24,8 +24,8 @@
   --color-expense: var(--expense);
   --color-muted: var(--muted);
   --color-muted-foreground: var(--muted-foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-geist-sans), var(--font-noto-sans-jp);
+  --font-mono: var(--font-geist-mono), var(--font-noto-sans-jp);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -48,6 +48,7 @@ body {
   color: var(--foreground);
   font-family: var(--font-sans), system-ui, -apple-system, sans-serif;
   -webkit-font-smoothing: antialiased;
+  font-variant-numeric: tabular-nums;
 }
 
 /* iOS safe area (home indicator) support */

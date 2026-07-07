@@ -1,9 +1,10 @@
 "use client"
 
-import { useEffect, useState, useCallback } from "react"
+import { useEffect, useState, useCallback, useRef } from "react"
 import type { VariableExpense, FixedExpense } from "@/types"
 import { EmptyState } from "@/components/ui/empty-state"
 import { toJSTDateString } from "@/lib/utils"
+import { apiRequest } from "@/lib/api"
 
 function getMonthDate(offset = 0): string {
   const now = new Date()
@@ -75,14 +76,17 @@ export default function FixedPage() {
   const [showAddVariable, setShowAddVariable] = useState(false)
   const [showPresets, setShowPresets] = useState(false)
   const [editFixedMaster, setEditFixedMaster] = useState<FixedExpense | null>(null)
+  const requestId = useRef(0)
 
   const month = getMonthDate(monthOffset)
 
   const fetchData = useCallback(async () => {
+    const id = ++requestId.current
     const [masters, vars] = await Promise.all([
       fetchArray<FixedExpense>("/api/fixed-expenses"),
       fetchArray<VariableExpense>(`/api/variable-expenses?month=${month}`),
     ])
+    if (id !== requestId.current) return // stale response, a newer request has since started
     setFixedMasters(masters)
     setVariables(vars)
   }, [month])
@@ -93,13 +97,21 @@ export default function FixedPage() {
 
   async function deleteFixedMaster(fe: FixedExpense) {
     if (!confirm(`「${fe.name} ¥${fe.amount.toLocaleString("ja-JP")}」を削除しますか？`)) return
-    await fetch(`/api/fixed-expenses/${fe.id}`, { method: "DELETE" })
+    const result = await apiRequest(`/api/fixed-expenses/${fe.id}`, { method: "DELETE" })
+    if (!result.ok) {
+      alert(result.error ?? "削除できませんでした")
+      return
+    }
     fetchData()
   }
 
   async function deleteVariable(v: VariableExpense) {
     if (!confirm(`「${v.name} ¥${v.amount.toLocaleString("ja-JP")}」を削除しますか？`)) return
-    await fetch(`/api/variable-expenses/${v.id}`, { method: "DELETE" })
+    const result = await apiRequest(`/api/variable-expenses/${v.id}`, { method: "DELETE" })
+    if (!result.ok) {
+      alert(result.error ?? "削除できませんでした")
+      return
+    }
     fetchData()
   }
 
@@ -140,9 +152,14 @@ export default function FixedPage() {
         ) : (
           <ul className="divide-y divide-[var(--border)]">
             {fixedMasters.map((fe) => (
-              <li key={fe.id} className="flex items-center justify-between px-5 py-3.5">
-                <p className="text-sm font-medium">{fe.name}</p>
-                <div className="flex items-center gap-2">
+              <li key={fe.id} className="flex items-center justify-between px-5 py-3.5 gap-2">
+                <div className="min-w-0">
+                  <p className="text-sm font-medium truncate">{fe.name}</p>
+                  {fe.note && (
+                    <p className="text-xs text-[var(--muted-foreground)] truncate">{fe.note}</p>
+                  )}
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
                   <span className="font-mono text-sm text-[var(--expense)]">
                     ¥{fe.amount.toLocaleString("ja-JP")}
                   </span>
@@ -271,6 +288,7 @@ function PresetSheet({
   const available = FIXED_PRESETS.filter((p) => !existingNames.includes(p.name))
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   function toggle(name: string) {
     setSelected((prev) => {
@@ -286,12 +304,17 @@ function PresetSheet({
   async function handleSave() {
     if (selected.size === 0) return
     setLoading(true)
-    await fetch("/api/fixed-expenses", {
+    setError(null)
+    const result = await apiRequest("/api/fixed-expenses", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: "seed_selected", names: [...selected] }),
     })
     setLoading(false)
+    if (!result.ok) {
+      setError(result.error ?? "追加できませんでした")
+      return
+    }
     onSaved()
     onClose()
   }
@@ -301,7 +324,10 @@ function PresetSheet({
     .reduce((s, p) => s + p.amount, 0)
 
   return (
-    <div className="fixed inset-0 bottom-16 z-50 flex items-end justify-center bg-black/40" onClick={onClose}>
+    <div
+      className="fixed inset-0 z-[60] flex items-end justify-center bg-black/40 pb-16"
+      onClick={onClose}
+    >
       <div
         className="w-full max-w-lg bg-[var(--surface)] rounded-t-3xl overflow-y-auto"
         style={{ maxHeight: "85dvh" }}
@@ -354,6 +380,10 @@ function PresetSheet({
             </ul>
           )}
 
+          {error && (
+            <p className="text-xs text-[var(--expense)] text-center pt-2">{error}</p>
+          )}
+
           <div className="flex gap-3 pt-4">
             <button onClick={onClose} className="flex-1 py-3 rounded-xl border border-[var(--border)] text-sm">
               キャンセル
@@ -389,32 +419,41 @@ function AddFixedSheet({
   const [amount, setAmount] = useState(
     master ? master.amount.toLocaleString("ja-JP") : ""
   )
+  const [note, setNote] = useState(master?.note ?? "")
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   async function handleSave() {
     const num = parseInt(amount.replace(/,/g, ""), 10)
     if (!name || !num) return
     setLoading(true)
-    if (master) {
-      await fetch(`/api/fixed-expenses/${master.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, amount: num }),
-      })
-    } else {
-      await fetch("/api/fixed-expenses", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "create_master", name, amount: num }),
-      })
-    }
+    setError(null)
+    const body = { name, amount: num, note: note || null }
+    const result = master
+      ? await apiRequest(`/api/fixed-expenses/${master.id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        })
+      : await apiRequest("/api/fixed-expenses", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "create_master", ...body }),
+        })
     setLoading(false)
+    if (!result.ok) {
+      setError(result.error ?? "保存できませんでした")
+      return
+    }
     onSaved()
     onClose()
   }
 
   return (
-    <div className="fixed inset-0 bottom-16 z-50 flex items-end justify-center bg-black/40" onClick={onClose}>
+    <div
+      className="fixed inset-0 z-[60] flex items-end justify-center bg-black/40 pb-16"
+      onClick={onClose}
+    >
       <div
         className="w-full max-w-lg bg-[var(--surface)] rounded-t-3xl p-6 space-y-4 overflow-y-auto"
         style={{ maxHeight: "85dvh" }}
@@ -453,6 +492,24 @@ function AddFixedSheet({
             />
           </div>
         </div>
+        <div>
+          <label className="text-xs text-[var(--muted-foreground)] mb-1 block">
+            備考（任意）
+          </label>
+          <input
+            type="text"
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            placeholder="例: ローン残り24回、2027年3月まで"
+            maxLength={200}
+            className="w-full px-4 py-3 bg-[var(--muted)] rounded-xl text-base outline-none focus:ring-2 focus:ring-[var(--primary)]"
+          />
+        </div>
+
+        {error && (
+          <p className="text-xs text-[var(--expense)] text-center">{error}</p>
+        )}
+
         <div className="flex gap-3 pt-2">
           <button onClick={onClose} className="flex-1 py-3 rounded-xl border border-[var(--border)] text-sm">キャンセル</button>
           <button
@@ -473,23 +530,32 @@ function AddVariableSheet({ month, onClose, onSaved }: { month: string; onClose:
   const [amount, setAmount] = useState("")
   const [paymentDate, setPaymentDate] = useState("")
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   async function handleSave() {
     const num = parseInt(amount.replace(/,/g, ""), 10)
     if (!name || !num || !paymentDate) return
     setLoading(true)
-    await fetch("/api/variable-expenses", {
+    setError(null)
+    const result = await apiRequest("/api/variable-expenses", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name, amount: num, paymentDate, month }),
     })
     setLoading(false)
+    if (!result.ok) {
+      setError(result.error ?? "保存できませんでした")
+      return
+    }
     onSaved()
     onClose()
   }
 
   return (
-    <div className="fixed inset-0 bottom-16 z-50 flex items-end justify-center bg-black/40" onClick={onClose}>
+    <div
+      className="fixed inset-0 z-[60] flex items-end justify-center bg-black/40 pb-16"
+      onClick={onClose}
+    >
       <div
         className="w-full max-w-lg bg-[var(--surface)] rounded-t-3xl p-6 space-y-4 overflow-y-auto"
         style={{ maxHeight: "85dvh" }}
@@ -557,6 +623,11 @@ function AddVariableSheet({ month, onClose, onSaved }: { month: string; onClose:
             className="w-full px-4 py-3 bg-[var(--muted)] rounded-xl text-base outline-none focus:ring-2 focus:ring-[var(--primary)]"
           />
         </div>
+
+        {error && (
+          <p className="text-xs text-[var(--expense)] text-center">{error}</p>
+        )}
+
         <div className="flex gap-3 pt-2">
           <button onClick={onClose} className="flex-1 py-3 rounded-xl border border-[var(--border)] text-sm">キャンセル</button>
           <button

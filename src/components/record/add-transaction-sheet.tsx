@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react"
 import type { Expense, Income, Category } from "@/types"
 import { INCOME_TYPE_LABELS } from "@/types"
+import { apiRequest } from "@/lib/api"
 
 type Mode = "expense" | "income"
 
@@ -40,12 +41,15 @@ export function AddTransactionSheet({
   const [memo, setMemo] = useState("")
   const [categories, setCategories] = useState<Category[]>([])
   const [loading, setLoading] = useState(false)
-  const [showDatePicker, setShowDatePicker] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const isEditing = editExpense ?? editIncome
 
   useEffect(() => {
-    fetch("/api/categories").then((r) => r.json()).then(setCategories)
+    fetch("/api/categories")
+      .then((r) => (r.ok ? r.json() : []))
+      .then((c) => setCategories(Array.isArray(c) ? c : []))
+      .catch(() => setCategories([]))
   }, [])
 
   useEffect(() => {
@@ -72,64 +76,76 @@ export function AddTransactionSheet({
     const num = parseInt(amount.replace(/,/g, ""), 10)
     if (!num || num <= 0) return
     setLoading(true)
+    setError(null)
 
+    let result
     if (mode === "expense") {
       const body = { amount: num, categoryId: categoryId ?? null, date, memo: memo || null }
-      if (editExpense) {
-        await fetch(`/api/expenses/${editExpense.id}`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(body),
-        })
-      } else {
-        await fetch("/api/expenses", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(body),
-        })
-      }
+      result = editExpense
+        ? await apiRequest(`/api/expenses/${editExpense.id}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(body),
+          })
+        : await apiRequest("/api/expenses", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(body),
+          })
     } else {
       const body = { amount: num, type: incomeType, date, memo: memo || null }
-      if (editIncome) {
-        await fetch(`/api/income/${editIncome.id}`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(body),
-        })
-      } else {
-        await fetch("/api/income", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(body),
-        })
-      }
+      result = editIncome
+        ? await apiRequest(`/api/income/${editIncome.id}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(body),
+          })
+        : await apiRequest("/api/income", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(body),
+          })
     }
 
     setLoading(false)
+    if (!result.ok) {
+      setError(result.error ?? "保存できませんでした")
+      return
+    }
     onSaved()
     onClose()
   }
 
   async function handleDelete() {
-    if (!confirm("削除しますか？")) return
+    const target = editExpense
+      ? `¥${editExpense.amount.toLocaleString("ja-JP")}${editExpense.memo ? `（${editExpense.memo}）` : ""}`
+      : editIncome
+        ? `¥${editIncome.amount.toLocaleString("ja-JP")}（${INCOME_TYPE_LABELS[editIncome.type]}）`
+        : ""
+    if (!confirm(`「${target}」を削除しますか？`)) return
     setLoading(true)
-    if (editExpense) {
-      await fetch(`/api/expenses/${editExpense.id}`, { method: "DELETE" })
-    } else if (editIncome) {
-      await fetch(`/api/income/${editIncome.id}`, { method: "DELETE" })
-    }
+    setError(null)
+
+    const result = editExpense
+      ? await apiRequest(`/api/expenses/${editExpense.id}`, { method: "DELETE" })
+      : editIncome
+        ? await apiRequest(`/api/income/${editIncome.id}`, { method: "DELETE" })
+        : { ok: true }
+
     setLoading(false)
+    if (!result.ok) {
+      setError(result.error ?? "削除できませんでした")
+      return
+    }
     onSaved()
     onClose()
   }
 
-  const dateLabel = (() => {
-    const [y, m, d] = date.split("-")
-    return `${y}年${parseInt(m)}月${parseInt(d)}日`
-  })()
-
   return (
-    <div className="fixed inset-0 bottom-16 z-50 flex items-end justify-center bg-black/40" onClick={onClose}>
+    <div
+      className="fixed inset-0 z-[60] flex items-end justify-center bg-black/40 pb-16"
+      onClick={onClose}
+    >
       <div
         className="w-full max-w-lg bg-[var(--surface)] rounded-t-3xl overflow-y-auto"
         style={{ maxHeight: "85dvh" }}
@@ -211,7 +227,7 @@ export function AddTransactionSheet({
               type="date"
               value={date}
               onChange={(e) => setDate(e.target.value)}
-              className="w-full px-4 py-3 bg-[var(--muted)] rounded-xl text-sm outline-none focus:ring-2 focus:ring-[var(--primary)]"
+              className="w-full px-4 py-3 bg-[var(--muted)] rounded-xl text-base outline-none focus:ring-2 focus:ring-[var(--primary)]"
             />
           </div>
 
@@ -224,9 +240,13 @@ export function AddTransactionSheet({
               onChange={(e) => setMemo(e.target.value)}
               placeholder="例: ランチ、通勤定期など"
               maxLength={200}
-              className="w-full px-4 py-3 bg-[var(--muted)] rounded-xl text-sm outline-none focus:ring-2 focus:ring-[var(--primary)]"
+              className="w-full px-4 py-3 bg-[var(--muted)] rounded-xl text-base outline-none focus:ring-2 focus:ring-[var(--primary)]"
             />
           </div>
+
+          {error && (
+            <p className="text-xs text-[var(--expense)] text-center">{error}</p>
+          )}
 
           {/* Actions */}
           <div className="flex gap-3 pt-2">

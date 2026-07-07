@@ -77,10 +77,14 @@ CREATE TABLE IF NOT EXISTS fixed_expenses (
   user_id TEXT REFERENCES users(id) ON DELETE CASCADE NOT NULL,
   name TEXT NOT NULL,
   amount BIGINT NOT NULL CHECK (amount > 0),
+  note TEXT,
   is_active BOOLEAN DEFAULT TRUE,
   deleted_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- Migration for existing databases (safe to re-run)
+ALTER TABLE fixed_expenses ADD COLUMN IF NOT EXISTS note TEXT;
 
 CREATE TABLE IF NOT EXISTS monthly_fixed (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

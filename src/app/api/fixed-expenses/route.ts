@@ -1,7 +1,7 @@
 import { auth } from "@/lib/auth"
 import { sql } from "@/lib/db"
-import { getFixedExpenses, getMonthlyFixed } from "@/lib/queries/fixed"
-import { fixedExpenseSchema, monthlyFixedSchema } from "@/lib/validations/fixed"
+import { getFixedExpenses } from "@/lib/queries/fixed"
+import { fixedExpenseSchema } from "@/lib/validations/fixed"
 import { NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
 
@@ -31,18 +31,9 @@ const seedSchema = z.object({
   names: z.array(z.string()).min(1).max(50),
 })
 
-export async function GET(req: NextRequest) {
+export async function GET() {
   const session = await auth()
   if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-
-  const month = req.nextUrl.searchParams.get("month")
-  if (month) {
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(month)) {
-      return NextResponse.json({ error: "Invalid month" }, { status: 400 })
-    }
-    const items = await getMonthlyFixed(session.user.id, month)
-    return NextResponse.json(items)
-  }
 
   const items = await getFixedExpenses(session.user.id)
   return NextResponse.json(items)
@@ -91,33 +82,14 @@ export async function POST(req: NextRequest) {
   if (action === "create_master") {
     const parsed = fixedExpenseSchema.safeParse(body)
     if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 })
-    const { name, amount } = parsed.data
+    const { name, amount, note } = parsed.data
     const rows = await sql`
-      INSERT INTO fixed_expenses (user_id, name, amount)
-      VALUES (${session.user.id}, ${name}, ${amount})
+      INSERT INTO fixed_expenses (user_id, name, amount, note)
+      VALUES (${session.user.id}, ${name}, ${amount}, ${note ?? null})
       RETURNING id
     `
     return NextResponse.json({ id: rows[0].id }, { status: 201 })
   }
 
-  // Upsert monthly fixed entry
-  const parsed = monthlyFixedSchema.safeParse(body)
-  if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 })
-
-  const { fixedExpenseId, month, amount, paymentDate } = parsed.data
-
-  // Verify ownership
-  const fe = await sql`SELECT user_id FROM fixed_expenses WHERE id = ${fixedExpenseId}`
-  if (!fe[0] || fe[0].user_id !== session.user.id) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 })
-  }
-
-  await sql`
-    INSERT INTO monthly_fixed (fixed_expense_id, month, amount, payment_date)
-    VALUES (${fixedExpenseId}, ${month}::date, ${amount}, ${paymentDate}::date)
-    ON CONFLICT (fixed_expense_id, month) DO UPDATE SET
-      amount = EXCLUDED.amount,
-      payment_date = EXCLUDED.payment_date
-  `
-  return NextResponse.json({ ok: true }, { status: 201 })
+  return NextResponse.json({ error: "Unknown action" }, { status: 400 })
 }

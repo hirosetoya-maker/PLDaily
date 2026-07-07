@@ -4,6 +4,7 @@ import { useSession, signOut } from "next-auth/react"
 import { useEffect, useState, useCallback } from "react"
 import type { Category } from "@/types"
 import { EmptyState } from "@/components/ui/empty-state"
+import { apiRequest } from "@/lib/api"
 
 export default function SettingsPage() {
   const { data: session } = useSession()
@@ -12,17 +13,27 @@ export default function SettingsPage() {
   const [editCategory, setEditCategory] = useState<Category | null>(null)
 
   const fetchCategories = useCallback(async () => {
-    const res = await fetch("/api/categories")
-    setCategories(await res.json())
+    try {
+      const res = await fetch("/api/categories")
+      if (!res.ok) return
+      const json = await res.json()
+      setCategories(Array.isArray(json) ? json : [])
+    } catch {
+      // keep previous state on network failure
+    }
   }, [])
 
   useEffect(() => {
     fetchCategories()
   }, [fetchCategories])
 
-  async function handleDeleteCategory(id: string) {
-    if (!confirm("削除しますか？")) return
-    await fetch(`/api/categories/${id}`, { method: "DELETE" })
+  async function handleDeleteCategory(c: Category) {
+    if (!confirm(`「${c.icon} ${c.name}」を削除しますか？\nこのカテゴリの支出は「その他」として残ります。`)) return
+    const result = await apiRequest(`/api/categories/${c.id}`, { method: "DELETE" })
+    if (!result.ok) {
+      alert(result.error ?? "削除できませんでした")
+      return
+    }
     fetchCategories()
   }
 
@@ -58,7 +69,7 @@ export default function SettingsPage() {
           <p className="text-sm font-medium">カテゴリ管理</p>
           <button
             onClick={() => { setEditCategory(null); setShowAddCategory(true) }}
-            className="text-xs text-[var(--primary)] font-medium px-3 py-1.5 rounded-lg border border-[var(--primary)]/30"
+            className="text-xs text-[var(--primary)] font-medium px-3 py-2 rounded-lg border border-[var(--primary)]/30"
           >
             ＋ 追加
           </button>
@@ -80,7 +91,7 @@ export default function SettingsPage() {
                     編集
                   </button>
                   <button
-                    onClick={() => handleDeleteCategory(c.id)}
+                    onClick={() => handleDeleteCategory(c)}
                     className="text-xs text-[var(--expense)] px-3 py-2 rounded"
                   >
                     削除
@@ -130,30 +141,38 @@ function CategorySheet({
   const [name, setName] = useState(category?.name ?? "")
   const [icon, setIcon] = useState(category?.icon ?? "💳")
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   async function handleSave() {
     if (!name || !icon) return
     setLoading(true)
-    if (category) {
-      await fetch(`/api/categories/${category.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, icon }),
-      })
-    } else {
-      await fetch("/api/categories", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, icon }),
-      })
-    }
+    setError(null)
+    const body = { name, icon }
+    const result = category
+      ? await apiRequest(`/api/categories/${category.id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        })
+      : await apiRequest("/api/categories", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        })
     setLoading(false)
+    if (!result.ok) {
+      setError(result.error ?? "保存できませんでした")
+      return
+    }
     onSaved()
     onClose()
   }
 
   return (
-    <div className="fixed inset-0 bottom-16 z-50 flex items-end justify-center bg-black/40" onClick={onClose}>
+    <div
+      className="fixed inset-0 z-[60] flex items-end justify-center bg-black/40 pb-16"
+      onClick={onClose}
+    >
       <div
         className="w-full max-w-lg bg-[var(--surface)] rounded-t-3xl p-6 space-y-4 overflow-y-auto"
         style={{ maxHeight: "85dvh" }}
@@ -172,7 +191,7 @@ function CategorySheet({
             onChange={(e) => setName(e.target.value)}
             placeholder="例: 外食、趣味"
             maxLength={50}
-            className="w-full px-4 py-3 bg-[var(--muted)] rounded-xl text-sm outline-none focus:ring-2 focus:ring-[var(--primary)]"
+            className="w-full px-4 py-3 bg-[var(--muted)] rounded-xl text-base outline-none focus:ring-2 focus:ring-[var(--primary)]"
             autoFocus
           />
         </div>
@@ -209,6 +228,10 @@ function CategorySheet({
             ))}
           </div>
         </div>
+
+        {error && (
+          <p className="text-xs text-[var(--expense)] text-center">{error}</p>
+        )}
 
         <div className="flex gap-3 pt-2">
           <button onClick={onClose} className="flex-1 py-3 rounded-xl border border-[var(--border)] text-sm">キャンセル</button>

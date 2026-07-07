@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, useCallback } from "react"
+import { useEffect, useState, useCallback, useRef } from "react"
 import { AddTransactionSheet } from "@/components/record/add-transaction-sheet"
 import { EmptyState } from "@/components/ui/empty-state"
 import { toJSTDateString } from "@/lib/utils"
@@ -36,8 +36,10 @@ export default function RecordPage() {
   const [showSheet, setShowSheet] = useState(false)
   const [editExpense, setEditExpense] = useState<Expense | null>(null)
   const [editIncome, setEditIncome] = useState<Income | null>(null)
+  const requestId = useRef(0)
 
   const fetchData = useCallback(async () => {
+    const id = ++requestId.current
     const { from, to } = getRange(period)
     const [expRes, incRes] = await Promise.all([
       fetch(`/api/expenses?from=${from}&to=${to}`),
@@ -45,6 +47,7 @@ export default function RecordPage() {
     ])
     const exp = expRes.ok ? await expRes.json().catch(() => []) : []
     const inc = incRes.ok ? await incRes.json().catch(() => []) : []
+    if (id !== requestId.current) return // stale response, a newer request has since started
     setExpenses(Array.isArray(exp) ? exp : [])
     setIncome(Array.isArray(inc) ? inc : [])
   }, [period])

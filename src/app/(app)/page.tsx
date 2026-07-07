@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from "react"
 import dynamic from "next/dynamic"
 import { MonthlySummary } from "@/components/dashboard/monthly-summary"
 import { EmptyState } from "@/components/ui/empty-state"
+import { AddTransactionSheet } from "@/components/record/add-transaction-sheet"
 import { toJSTDateString } from "@/lib/utils"
 import type { Expense, MonthlyCashFlow } from "@/types"
 import Link from "next/link"
@@ -36,6 +37,7 @@ export default function DashboardPage() {
   const [monthlyIncome, setMonthlyIncome] = useState(0)
   const [cashflow, setCashflow] = useState<MonthlyCashFlow[]>([])
   const [loading, setLoading] = useState(true)
+  const [showAddSheet, setShowAddSheet] = useState(false)
 
   const fetchAll = useCallback(async () => {
     const { from, to } = getMonthRange()
@@ -93,12 +95,12 @@ export default function DashboardPage() {
               <EmptyState
                 title="今日の支出はありません"
                 action={
-                  <Link
-                    href="/record"
+                  <button
+                    onClick={() => setShowAddSheet(true)}
                     className="text-sm text-[var(--primary)] font-medium"
                   >
                     ＋ 支出を記録する
-                  </Link>
+                  </button>
                 }
                 className="py-6"
               />
@@ -122,6 +124,23 @@ export default function DashboardPage() {
             )}
           </div>
         </>
+      )}
+
+      {/* FAB */}
+      <button
+        onClick={() => setShowAddSheet(true)}
+        aria-label="支出を追加"
+        className="fixed bottom-20 right-4 w-14 h-14 rounded-full bg-[var(--expense)] text-white text-2xl shadow-lg flex items-center justify-center transition-transform active:scale-95"
+      >
+        ＋
+      </button>
+
+      {showAddSheet && (
+        <AddTransactionSheet
+          mode="expense"
+          onClose={() => setShowAddSheet(false)}
+          onSaved={fetchAll}
+        />
       )}
     </div>
   )

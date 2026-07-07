@@ -34,18 +34,9 @@ export type FixedExpense = {
   userId: string
   name: string
   amount: number
+  note: string | null
   isActive: boolean
   createdAt: string
-}
-
-export type MonthlyFixed = {
-  id: string
-  fixedExpenseId: string
-  month: string
-  amount: number
-  paymentDate: string
-  isPaid: boolean
-  name?: string
 }
 
 export type VariableExpense = {
@@ -56,14 +47,6 @@ export type VariableExpense = {
   paymentDate: string
   month: string
   createdAt: string
-}
-
-export type BalanceLog = {
-  id: string
-  userId: string
-  amount: number
-  note: string | null
-  recordedAt: string
 }
 
 export type MonthlyCashFlow = {
