@@ -58,7 +58,7 @@ export function CashFlowChart({ data }: CashFlowChartProps) {
   return (
     <div className="bg-[var(--surface)] rounded-2xl p-5 border border-[var(--border)]">
       <div className="flex items-center justify-between mb-1">
-        <span className="text-xs text-[var(--muted-foreground)]">月次収支（固定費・変動費含む）</span>
+        <span className="text-xs text-[var(--muted-foreground)]">月次収支（口座引き落とし含む）</span>
         {hasDeficit && (
           <span className="text-xs text-[var(--expense)] font-medium">⚠ 赤字の月あり</span>
         )}

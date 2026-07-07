@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from "react"
 import { AddTransactionSheet } from "@/components/record/add-transaction-sheet"
 import { EmptyState } from "@/components/ui/empty-state"
-import { formatDateShort, toJSTDateString } from "@/lib/utils"
+import { toJSTDateString } from "@/lib/utils"
 import { INCOME_TYPE_LABELS } from "@/types"
 import type { Expense, Income } from "@/types"
 
@@ -43,8 +43,10 @@ export default function RecordPage() {
       fetch(`/api/expenses?from=${from}&to=${to}`),
       fetch(`/api/income?from=${from}&to=${to}`),
     ])
-    setExpenses(await expRes.json())
-    setIncome(await incRes.json())
+    const exp = expRes.ok ? await expRes.json().catch(() => []) : []
+    const inc = incRes.ok ? await incRes.json().catch(() => []) : []
+    setExpenses(Array.isArray(exp) ? exp : [])
+    setIncome(Array.isArray(inc) ? inc : [])
   }, [period])
 
   useEffect(() => {
@@ -144,11 +146,21 @@ export default function RecordPage() {
             {sortedDates.map((date) => {
               const dayItems = grouped[date]
               const [y, m, d] = date.split("-")
+              const dayTotal = dayItems.reduce((s, i) => s + i.amount, 0)
               return (
                 <div key={date}>
-                  <p className="text-xs text-[var(--muted-foreground)] mb-2">
-                    {y}年{parseInt(m)}月{parseInt(d)}日
-                  </p>
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-xs text-[var(--muted-foreground)]">
+                      {y}年{parseInt(m)}月{parseInt(d)}日
+                    </p>
+                    <p
+                      className={`font-mono text-xs font-medium ${
+                        mode === "expense" ? "text-[var(--expense)]" : "text-[var(--income)]"
+                      }`}
+                    >
+                      計 ¥{dayTotal.toLocaleString("ja-JP")}
+                    </p>
+                  </div>
                   <div className="space-y-2">
                     {dayItems.map((item) => {
                       const isExpense = "categoryId" in item

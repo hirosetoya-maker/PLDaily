@@ -2,11 +2,10 @@
 
 import { useEffect, useState, useCallback } from "react"
 import dynamic from "next/dynamic"
-import { BalanceCard } from "@/components/dashboard/balance-card"
 import { MonthlySummary } from "@/components/dashboard/monthly-summary"
 import { EmptyState } from "@/components/ui/empty-state"
-import { formatDateShort, toJSTDateString } from "@/lib/utils"
-import type { BalanceLog, Expense, MonthlyCashFlow } from "@/types"
+import { toJSTDateString } from "@/lib/utils"
+import type { Expense, MonthlyCashFlow } from "@/types"
 import Link from "next/link"
 
 const CashFlowChart = dynamic(
@@ -22,34 +21,35 @@ function getMonthRange() {
   }
 }
 
+async function fetchJson(url: string): Promise<unknown> {
+  try {
+    const res = await fetch(url)
+    if (!res.ok) return null
+    return await res.json()
+  } catch {
+    return null
+  }
+}
+
 export default function DashboardPage() {
-  const [balance, setBalance] = useState<BalanceLog | null>(null)
   const [expenses, setExpenses] = useState<Expense[]>([])
   const [monthlyIncome, setMonthlyIncome] = useState(0)
   const [cashflow, setCashflow] = useState<MonthlyCashFlow[]>([])
   const [loading, setLoading] = useState(true)
 
   const fetchAll = useCallback(async () => {
-    setLoading(true)
     const { from, to } = getMonthRange()
 
-    const [balRes, expRes, incRes, cfRes] = await Promise.all([
-      fetch("/api/balance"),
-      fetch(`/api/expenses?from=${from}&to=${to}`),
-      fetch(`/api/income?from=${from}&to=${to}`),
-      fetch("/api/cashflow"),
+    const [exp, inc, cf] = await Promise.all([
+      fetchJson(`/api/expenses?from=${from}&to=${to}`),
+      fetchJson(`/api/income?from=${from}&to=${to}`),
+      fetchJson("/api/cashflow"),
     ])
 
-    const [bal, exp, inc, cf] = await Promise.all([
-      balRes.json(),
-      expRes.json(),
-      incRes.json(),
-      cfRes.json(),
-    ])
-
-    setBalance(bal)
-    setExpenses(exp)
-    setMonthlyIncome(Array.isArray(inc) ? inc.reduce((s: number, i: { amount: number }) => s + i.amount, 0) : 0)
+    setExpenses(Array.isArray(exp) ? exp : [])
+    setMonthlyIncome(
+      Array.isArray(inc) ? inc.reduce((s: number, i: { amount: number }) => s + i.amount, 0) : 0
+    )
     setCashflow(Array.isArray(cf) ? cf : [])
     setLoading(false)
   }, [])
@@ -72,48 +72,57 @@ export default function DashboardPage() {
         </Link>
       </div>
 
-      <BalanceCard balance={balance} onUpdated={fetchAll} />
-      <MonthlySummary income={monthlyIncome} expenses={monthlyExpenseTotal} />
-      <CashFlowChart data={cashflow} />
+      {loading ? (
+        <>
+          <div className="bg-[var(--surface)] rounded-2xl p-5 border border-[var(--border)] h-24 animate-pulse" />
+          <div className="bg-[var(--surface)] rounded-2xl p-5 border border-[var(--border)] h-48 animate-pulse" />
+          <div className="bg-[var(--surface)] rounded-2xl p-5 border border-[var(--border)] h-32 animate-pulse" />
+        </>
+      ) : (
+        <>
+          <MonthlySummary income={monthlyIncome} expenses={monthlyExpenseTotal} />
+          <CashFlowChart data={cashflow} />
 
-      {/* Today's expenses */}
-      <div className="bg-[var(--surface)] rounded-2xl p-5 border border-[var(--border)]">
-        <div className="flex items-center justify-between mb-3">
-          <span className="text-xs text-[var(--muted-foreground)]">今日の支出</span>
-          <Link href="/record" className="text-xs text-[var(--primary)]">すべて見る</Link>
-        </div>
-        {todayExpenses.length === 0 ? (
-          <EmptyState
-            title="今日の支出はありません"
-            action={
-              <Link
-                href="/record"
-                className="text-sm text-[var(--primary)] font-medium"
-              >
-                ＋ 支出を記録する
-              </Link>
-            }
-            className="py-6"
-          />
-        ) : (
-          <ul className="space-y-3">
-            {todayExpenses.map((e) => (
-              <li key={e.id} className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="text-lg">{e.categoryIcon ?? "💳"}</span>
-                  <div>
-                    <p className="text-sm font-medium">{e.categoryName ?? "その他"}</p>
-                    {e.memo && <p className="text-xs text-[var(--muted-foreground)]">{e.memo}</p>}
-                  </div>
-                </div>
-                <span className="font-mono text-sm text-[var(--expense)]">
-                  ▼¥{e.amount.toLocaleString("ja-JP")}
-                </span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
+          {/* Today's expenses */}
+          <div className="bg-[var(--surface)] rounded-2xl p-5 border border-[var(--border)]">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-xs text-[var(--muted-foreground)]">今日の支出</span>
+              <Link href="/record" className="text-xs text-[var(--primary)]">すべて見る</Link>
+            </div>
+            {todayExpenses.length === 0 ? (
+              <EmptyState
+                title="今日の支出はありません"
+                action={
+                  <Link
+                    href="/record"
+                    className="text-sm text-[var(--primary)] font-medium"
+                  >
+                    ＋ 支出を記録する
+                  </Link>
+                }
+                className="py-6"
+              />
+            ) : (
+              <ul className="space-y-3">
+                {todayExpenses.map((e) => (
+                  <li key={e.id} className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="text-lg">{e.categoryIcon ?? "💳"}</span>
+                      <div>
+                        <p className="text-sm font-medium">{e.categoryName ?? "その他"}</p>
+                        {e.memo && <p className="text-xs text-[var(--muted-foreground)]">{e.memo}</p>}
+                      </div>
+                    </div>
+                    <span className="font-mono text-sm text-[var(--expense)]">
+                      ▼¥{e.amount.toLocaleString("ja-JP")}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </>
+      )}
     </div>
   )
 }
