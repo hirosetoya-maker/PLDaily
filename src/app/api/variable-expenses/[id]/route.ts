@@ -16,11 +16,12 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   const parsed = variableExpenseSchema.safeParse(body)
   if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 })
 
-  const { name, amount, paymentDate, month } = parsed.data
+  const { name, amount, paymentDate, month, isPaid } = parsed.data
   await sql`
     UPDATE variable_expenses SET
       name = ${name}, amount = ${amount},
-      payment_date = ${paymentDate}::date, month = ${month}::date
+      payment_date = ${paymentDate}::date, month = ${month}::date,
+      is_paid = ${isPaid ?? false}
     WHERE id = ${id}
   `
   return NextResponse.json({ ok: true })

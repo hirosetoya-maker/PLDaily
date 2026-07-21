@@ -46,6 +46,7 @@ export type VariableExpense = {
   amount: number
   paymentDate: string
   month: string
+  isPaid: boolean
   createdAt: string
 }
 
