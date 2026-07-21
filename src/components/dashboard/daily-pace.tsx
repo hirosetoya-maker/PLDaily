@@ -45,7 +45,7 @@ export function DailyPaceCard({ pace }: DailyPaceProps) {
       )}
 
       <p className="text-[10px] text-[var(--muted-foreground)]">
-        収入 {formatCurrency(pace.incomeSoFar)} − 固定費 {formatCurrency(pace.fixedTotal)} − ここまでの支出{" "}
+        今月の収入 {formatCurrency(pace.monthlyIncome)} − 固定費 {formatCurrency(pace.fixedTotal)} − ここまでの支出{" "}
         {formatCurrency(pace.variableSpentSoFar)} を残り{pace.daysRemaining}日で割った金額です
       </p>
     </div>
