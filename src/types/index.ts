@@ -57,6 +57,36 @@ export type MonthlyCashFlow = {
   isCurrent: boolean
 }
 
+export type DailyPace = {
+  month: string
+  daysElapsed: number
+  daysInMonth: number
+  daysRemaining: number
+  variableSpentSoFar: number
+  dailyAverageSoFar: number
+  incomeSoFar: number
+  fixedTotal: number
+  remainingBudget: number
+  dailyAllowanceRemaining: number
+}
+
+export type CategoryBreakdown = {
+  categoryId: string | null
+  categoryName: string
+  categoryIcon: string
+  amount: number
+}
+
+export type MonthSummary = {
+  month: string
+  income: number
+  fixedTotal: number
+  variableTotal: number
+  expenseTotal: number
+  net: number
+  categories: CategoryBreakdown[]
+}
+
 export const INCOME_TYPE_LABELS: Record<Income["type"], string> = {
   salary: "給与",
   bonus: "ボーナス",
