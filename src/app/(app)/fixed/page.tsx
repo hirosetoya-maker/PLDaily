@@ -17,13 +17,18 @@ function monthLabel(monthStr: string): string {
 }
 
 async function fetchArray<T>(url: string): Promise<T[]> {
+  const result = await fetchArrayResult<T>(url)
+  return result.data
+}
+
+async function fetchArrayResult<T>(url: string): Promise<{ ok: boolean; data: T[] }> {
   try {
     const res = await fetch(url)
-    if (!res.ok) return []
+    if (!res.ok) return { ok: false, data: [] }
     const json = await res.json()
-    return Array.isArray(json) ? json : []
+    return { ok: true, data: Array.isArray(json) ? json : [] }
   } catch {
-    return []
+    return { ok: false, data: [] }
   }
 }
 
@@ -71,6 +76,8 @@ function presetDateFor(month: string, day: number): string {
 export default function FixedPage() {
   const [monthOffset, setMonthOffset] = useState(0)
   const [fixedMasters, setFixedMasters] = useState<FixedExpense[]>([])
+  const [fixedLoading, setFixedLoading] = useState(true)
+  const [fixedError, setFixedError] = useState(false)
   const [variables, setVariables] = useState<VariableExpense[]>([])
   const [showAddFixed, setShowAddFixed] = useState(false)
   const [showAddVariable, setShowAddVariable] = useState(false)
@@ -82,12 +89,15 @@ export default function FixedPage() {
 
   const fetchData = useCallback(async () => {
     const id = ++requestId.current
-    const [masters, vars] = await Promise.all([
-      fetchArray<FixedExpense>("/api/fixed-expenses"),
+    setFixedLoading(true)
+    const [mastersResult, vars] = await Promise.all([
+      fetchArrayResult<FixedExpense>("/api/fixed-expenses"),
       fetchArray<VariableExpense>(`/api/variable-expenses?month=${month}`),
     ])
     if (id !== requestId.current) return // stale response, a newer request has since started
-    setFixedMasters(masters)
+    setFixedMasters(mastersResult.data)
+    setFixedError(!mastersResult.ok)
+    setFixedLoading(false)
     setVariables(vars)
   }, [month])
 
@@ -147,7 +157,21 @@ export default function FixedPage() {
           カード払い含め、毎月固定でかかっている金額の一覧
         </p>
 
-        {fixedMasters.length === 0 ? (
+        {fixedLoading ? (
+          <div className="px-5 py-8 text-center text-xs text-[var(--muted-foreground)]">
+            読み込み中...
+          </div>
+        ) : fixedError ? (
+          <div className="px-5 py-8 text-center space-y-2">
+            <p className="text-xs text-[var(--expense)]">読み込みに失敗しました</p>
+            <button
+              onClick={() => fetchData()}
+              className="text-xs text-[var(--primary)] font-medium underline"
+            >
+              再試行
+            </button>
+          </div>
+        ) : fixedMasters.length === 0 ? (
           <EmptyState title="固定費が登録されていません" className="py-8" />
         ) : (
           <ul className="divide-y divide-[var(--border)]">
