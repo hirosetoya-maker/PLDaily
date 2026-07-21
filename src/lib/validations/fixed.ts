@@ -11,6 +11,7 @@ export const variableExpenseSchema = z.object({
   amount: z.number().int().positive().max(99999999),
   paymentDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   month: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  isPaid: z.boolean().optional(),
 })
 
 export type FixedExpenseInput = z.infer<typeof fixedExpenseSchema>

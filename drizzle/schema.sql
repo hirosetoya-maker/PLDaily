@@ -103,8 +103,12 @@ CREATE TABLE IF NOT EXISTS variable_expenses (
   amount BIGINT NOT NULL CHECK (amount > 0),
   payment_date DATE NOT NULL,
   month DATE NOT NULL,
+  is_paid BOOLEAN DEFAULT FALSE,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- Migration for existing databases (safe to re-run)
+ALTER TABLE variable_expenses ADD COLUMN IF NOT EXISTS is_paid BOOLEAN DEFAULT FALSE;
 
 -- Indexes
 CREATE INDEX IF NOT EXISTS expenses_user_date ON expenses (user_id, date);

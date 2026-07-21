@@ -83,6 +83,7 @@ export default function FixedPage() {
   const [showAddVariable, setShowAddVariable] = useState(false)
   const [showPresets, setShowPresets] = useState(false)
   const [editFixedMaster, setEditFixedMaster] = useState<FixedExpense | null>(null)
+  const [editVariable, setEditVariable] = useState<VariableExpense | null>(null)
   const requestId = useRef(0)
 
   const month = getMonthDate(monthOffset)
@@ -125,9 +126,27 @@ export default function FixedPage() {
     fetchData()
   }
 
+  async function toggleVariablePaid(v: VariableExpense) {
+    const result = await apiRequest(`/api/variable-expenses/${v.id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: v.name,
+        amount: v.amount,
+        paymentDate: v.paymentDate,
+        month: v.month,
+        isPaid: !v.isPaid,
+      }),
+    })
+    if (!result.ok) {
+      alert(result.error ?? "更新できませんでした")
+      return
+    }
+    fetchData()
+  }
+
   const fixedTotal = fixedMasters.reduce((s, fe) => s + fe.amount, 0)
   const varTotal = variables.reduce((s, v) => s + v.amount, 0)
-  const todayStr = toJSTDateString(new Date())
 
   return (
     <div className="px-4 pt-6 pb-4 space-y-4">
@@ -229,48 +248,57 @@ export default function FixedPage() {
             <p className="font-mono text-lg font-bold">¥{varTotal.toLocaleString("ja-JP")}</p>
           </div>
           <button
-            onClick={() => setShowAddVariable(true)}
+            onClick={() => { setEditVariable(null); setShowAddVariable(true) }}
             className="text-xs text-[var(--primary)] font-medium px-3 py-2 rounded-lg border border-[var(--primary)]/30 hover:bg-[var(--primary)]/5"
           >
             ＋ 追加
           </button>
         </div>
         <p className="px-5 pt-3 text-[10px] text-[var(--muted-foreground)]">
-          家賃・カード請求など、この月に口座から引き落とされる予定
+          家賃・カード請求など、この月に口座から引き落とされる予定。支払ったらチェックしてください
         </p>
 
         {variables.length === 0 ? (
           <EmptyState title="引き落とし予定がありません" className="py-8" />
         ) : (
           <ul className="divide-y divide-[var(--border)]">
-            {variables.map((v) => {
-              const passed = v.paymentDate <= todayStr
-              return (
-                <li
-                  key={v.id}
-                  className={`flex items-center justify-between px-5 py-3.5 ${passed ? "opacity-50" : ""}`}
+            {variables.map((v) => (
+              <li
+                key={v.id}
+                className={`flex items-center gap-3 px-5 py-3.5 ${v.isPaid ? "opacity-50" : ""}`}
+              >
+                <button
+                  onClick={() => toggleVariablePaid(v)}
+                  aria-label={v.isPaid ? "未払いに戻す" : "支払い済みにする"}
+                  className={`w-6 h-6 shrink-0 rounded-md border-2 flex items-center justify-center text-xs transition-colors ${
+                    v.isPaid
+                      ? "bg-[var(--primary)] border-[var(--primary)] text-white"
+                      : "border-[var(--border)]"
+                  }`}
                 >
-                  <div>
-                    <p className="text-sm font-medium">{v.name}</p>
-                    <p className="text-xs text-[var(--muted-foreground)]">
-                      {v.paymentDate.split("-").slice(1).join("/").replace(/^0/, "")} 引き落とし
-                      {passed && "済み"}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <span className="font-mono text-sm text-[var(--expense)]">
-                      ¥{v.amount.toLocaleString("ja-JP")}
-                    </span>
-                    <button
-                      onClick={() => deleteVariable(v)}
-                      className="w-9 h-9 rounded-full border border-[var(--border)] flex items-center justify-center text-xs text-[var(--muted-foreground)] hover:border-[var(--expense)] hover:text-[var(--expense)]"
-                    >
-                      ✕
-                    </button>
-                  </div>
-                </li>
-              )
-            })}
+                  {v.isPaid ? "✓" : ""}
+                </button>
+                <button
+                  onClick={() => { setEditVariable(v); setShowAddVariable(true) }}
+                  className="flex-1 min-w-0 text-left"
+                >
+                  <p className="text-sm font-medium">{v.name}</p>
+                  <p className="text-xs text-[var(--muted-foreground)]">
+                    {v.paymentDate.split("-").slice(1).join("/").replace(/^0/, "")} 引き落とし
+                    {v.isPaid && "・支払い済み"}
+                  </p>
+                </button>
+                <span className="font-mono text-sm text-[var(--expense)] shrink-0">
+                  ¥{v.amount.toLocaleString("ja-JP")}
+                </span>
+                <button
+                  onClick={() => deleteVariable(v)}
+                  className="w-9 h-9 shrink-0 rounded-full border border-[var(--border)] flex items-center justify-center text-xs text-[var(--muted-foreground)] hover:border-[var(--expense)] hover:text-[var(--expense)]"
+                >
+                  ✕
+                </button>
+              </li>
+            ))}
           </ul>
         )}
       </div>
@@ -292,7 +320,8 @@ export default function FixedPage() {
       {showAddVariable && (
         <AddVariableSheet
           month={month}
-          onClose={() => setShowAddVariable(false)}
+          editing={editVariable}
+          onClose={() => { setShowAddVariable(false); setEditVariable(null) }}
           onSaved={fetchData}
         />
       )}
@@ -549,10 +578,20 @@ function AddFixedSheet({
   )
 }
 
-function AddVariableSheet({ month, onClose, onSaved }: { month: string; onClose: () => void; onSaved: () => void }) {
-  const [name, setName] = useState("")
-  const [amount, setAmount] = useState("")
-  const [paymentDate, setPaymentDate] = useState("")
+function AddVariableSheet({
+  month,
+  editing,
+  onClose,
+  onSaved,
+}: {
+  month: string
+  editing: VariableExpense | null
+  onClose: () => void
+  onSaved: () => void
+}) {
+  const [name, setName] = useState(editing?.name ?? "")
+  const [amount, setAmount] = useState(editing ? editing.amount.toLocaleString("ja-JP") : "")
+  const [paymentDate, setPaymentDate] = useState(editing?.paymentDate ?? "")
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -561,11 +600,18 @@ function AddVariableSheet({ month, onClose, onSaved }: { month: string; onClose:
     if (!name || !num || !paymentDate) return
     setLoading(true)
     setError(null)
-    const result = await apiRequest("/api/variable-expenses", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, amount: num, paymentDate, month }),
-    })
+    const body = { name, amount: num, paymentDate, month, isPaid: editing?.isPaid ?? false }
+    const result = editing
+      ? await apiRequest(`/api/variable-expenses/${editing.id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        })
+      : await apiRequest("/api/variable-expenses", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        })
     setLoading(false)
     if (!result.ok) {
       setError(result.error ?? "保存できませんでした")
@@ -586,7 +632,9 @@ function AddVariableSheet({ month, onClose, onSaved }: { month: string; onClose:
         onClick={(e) => e.stopPropagation()}
       >
         <div className="w-12 h-1 bg-[var(--border)] rounded-full mx-auto" />
-        <h2 className="text-base font-semibold text-center">引き落としを追加</h2>
+        <h2 className="text-base font-semibold text-center">
+          {editing ? "引き落としを編集" : "引き落としを追加"}
+        </h2>
 
         <div>
           <label className="text-xs text-[var(--muted-foreground)] mb-2 block">よく使う引き落とし（タップで入力）</label>
@@ -659,7 +707,7 @@ function AddVariableSheet({ month, onClose, onSaved }: { month: string; onClose:
             disabled={!name || !amount || !paymentDate || loading}
             className="flex-1 py-3 rounded-xl bg-[var(--primary)] text-white text-sm font-medium disabled:opacity-50"
           >
-            {loading ? "保存中..." : "追加する"}
+            {loading ? "保存中..." : editing ? "更新する" : "追加する"}
           </button>
         </div>
       </div>

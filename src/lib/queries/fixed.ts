@@ -24,7 +24,7 @@ export async function getVariableExpenses(
   month: string
 ): Promise<VariableExpense[]> {
   const rows = await sql`
-    SELECT id, user_id, name, amount, payment_date::text, month::text, created_at::text
+    SELECT id, user_id, name, amount, payment_date::text, month::text, is_paid, created_at::text
     FROM variable_expenses
     WHERE user_id = ${userId} AND month = ${month}::date
     ORDER BY payment_date ASC
@@ -36,6 +36,7 @@ export async function getVariableExpenses(
     amount: Number(r.amount),
     paymentDate: r.payment_date as string,
     month: r.month as string,
+    isPaid: Boolean(r.is_paid),
     createdAt: r.created_at as string,
   }))
 }
