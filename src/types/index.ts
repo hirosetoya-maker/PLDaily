@@ -64,7 +64,7 @@ export type DailyPace = {
   daysRemaining: number
   variableSpentSoFar: number
   dailyAverageSoFar: number
-  incomeSoFar: number
+  monthlyIncome: number
   fixedTotal: number
   remainingBudget: number
   dailyAllowanceRemaining: number
