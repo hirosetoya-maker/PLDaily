@@ -3,10 +3,12 @@
 import { useEffect, useState, useCallback } from "react"
 import dynamic from "next/dynamic"
 import { MonthlySummary } from "@/components/dashboard/monthly-summary"
+import { DailyPaceCard } from "@/components/dashboard/daily-pace"
+import { MonthSummaryDetail } from "@/components/dashboard/month-summary-detail"
 import { EmptyState } from "@/components/ui/empty-state"
 import { AddTransactionSheet } from "@/components/record/add-transaction-sheet"
 import { toJSTDateString } from "@/lib/utils"
-import type { Expense, MonthlyCashFlow } from "@/types"
+import type { DailyPace, Expense, MonthlyCashFlow, MonthSummary } from "@/types"
 import Link from "next/link"
 
 const CashFlowChart = dynamic(
@@ -36,16 +38,21 @@ export default function DashboardPage() {
   const [expenses, setExpenses] = useState<Expense[]>([])
   const [monthlyIncome, setMonthlyIncome] = useState(0)
   const [cashflow, setCashflow] = useState<MonthlyCashFlow[]>([])
+  const [pace, setPace] = useState<DailyPace | null>(null)
+  const [currentSummary, setCurrentSummary] = useState<MonthSummary | null>(null)
+  const [previousSummary, setPreviousSummary] = useState<MonthSummary | null>(null)
   const [loading, setLoading] = useState(true)
   const [showAddSheet, setShowAddSheet] = useState(false)
 
   const fetchAll = useCallback(async () => {
     const { from, to } = getMonthRange()
 
-    const [exp, inc, cf] = await Promise.all([
+    const [exp, inc, cf, paceData, summary] = await Promise.all([
       fetchJson(`/api/expenses?from=${from}&to=${to}`),
       fetchJson(`/api/income?from=${from}&to=${to}`),
       fetchJson("/api/cashflow"),
+      fetchJson("/api/dashboard/pace"),
+      fetchJson("/api/dashboard/summary"),
     ])
 
     setExpenses(Array.isArray(exp) ? exp : [])
@@ -53,6 +60,10 @@ export default function DashboardPage() {
       Array.isArray(inc) ? inc.reduce((s: number, i: { amount: number }) => s + i.amount, 0) : 0
     )
     setCashflow(Array.isArray(cf) ? cf : [])
+    setPace((paceData as DailyPace) ?? null)
+    const s = summary as { current: MonthSummary; previous: MonthSummary } | null
+    setCurrentSummary(s?.current ?? null)
+    setPreviousSummary(s?.previous ?? null)
     setLoading(false)
   }, [])
 
@@ -83,7 +94,12 @@ export default function DashboardPage() {
       ) : (
         <>
           <MonthlySummary income={monthlyIncome} expenses={monthlyExpenseTotal} />
+          {pace && <DailyPaceCard pace={pace} />}
           <CashFlowChart data={cashflow} />
+
+          {/* 先月・今月サマリー */}
+          {currentSummary && <MonthSummaryDetail title="今月" summary={currentSummary} />}
+          {previousSummary && <MonthSummaryDetail title="先月" summary={previousSummary} />}
 
           {/* Today's expenses */}
           <div className="bg-[var(--surface)] rounded-2xl p-5 border border-[var(--border)]">
