@@ -71,7 +71,9 @@ export default function DashboardPage() {
     fetchAll()
   }, [fetchAll])
 
-  const monthlyExpenseTotal = expenses.reduce((s, e) => s + e.amount, 0)
+  const monthlyExpenseTotal = currentSummary
+    ? currentSummary.expenseTotal
+    : expenses.reduce((s, e) => s + e.amount, 0)
 
   const today = toJSTDateString(new Date())
   const todayExpenses = expenses.filter((e) => e.date === today).slice(0, 5)
